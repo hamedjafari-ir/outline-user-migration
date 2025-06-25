@@ -18,16 +18,14 @@ This is a Bash-based utility to help you **migrate Outline VPN users** from an o
 
 ## Usage
 
-1. Clone this repository:
-   ```bash
-   git clone https://github.com/your-username/outline-migration-tool.git
-   cd outline-migration-tool
-   chmod +x outline_migration.sh
+curl -O https://raw.githubusercontent.com/hamedjafari/outline-user-migration/main/outline_migration.sh
+chmod +x outline_migration.sh
+sudo ./outline_migration.sh
 
 
 ## Quick Start (1-liner)
 
-Run the following command to start the migration script directly:
+You can run the migration script directly with:
 
 ```bash
-sudo bash <(curl -s https://raw.githubusercontent.com/hamedjafari/outline-migration-tool/main/outline_migration.sh)
+curl -s https://raw.githubusercontent.com/hamedjafari/outline-user-migration/main/outline_migration.sh | sudo bash
