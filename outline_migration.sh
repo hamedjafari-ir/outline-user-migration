@@ -1,12 +1,15 @@
 #!/bin/bash
 
-# Ensure script is run as root
 if [[ "$EUID" -ne 0 ]]; then
   echo "Please run as root."
   exit 1
 fi
 
 apt update && apt upgrade -y
+
+function pause() {
+  read -p "Press Enter to return to menu..."
+}
 
 function transfer_outline() {
   read -p "Enter OLD server IP address: " OLD_IP
@@ -24,6 +27,7 @@ function transfer_outline() {
   sshpass -p "$PASSWORD" ssh -o StrictHostKeyChecking=no "$USER@$OLD_IP" "test -d /opt/outline"
   if [[ $? -ne 0 ]]; then
     echo "No backup found on old server (/opt/outline not present)."
+    pause
     return
   fi
 
@@ -37,12 +41,15 @@ function transfer_outline() {
   else
     echo "Transfer failed."
   fi
+
+  pause
 }
 
 function ping_ip() {
   read -p "Enter IP address to ping: " IP
   echo "Pinging $IP..."
   ping -c 10 "$IP"
+  pause
 }
 
 function remove_outline() {
@@ -50,6 +57,7 @@ function remove_outline() {
   read -p "Are you sure you want to continue? (y/N): " CONFIRM
   if [[ "$CONFIRM" != "y" && "$CONFIRM" != "Y" ]]; then
     echo "Operation cancelled."
+    pause
     return
   fi
 
@@ -76,10 +84,13 @@ function remove_outline() {
   else
     echo "No Outline data found to remove."
   fi
+
+  pause
 }
 
 # Main menu
 while true; do
+  clear
   echo "-----------------------------------------"
   echo " Outline Server Migration Utility"
   echo "-----------------------------------------"
@@ -95,6 +106,6 @@ while true; do
     2) ping_ip ;;
     3) remove_outline ;;
     4) echo "Exiting..."; exit 0 ;;
-    *) echo "Invalid choice." ;;
+    *) echo "Invalid choice."; pause ;;
   esac
 done
