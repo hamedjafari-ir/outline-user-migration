@@ -5,13 +5,14 @@ if [[ "$EUID" -ne 0 ]]; then
   exit 1
 fi
 
-apt update && apt upgrade -y
-
 function pause() {
   read -p "Press Enter to return to menu..."
 }
 
 function transfer_outline() {
+  echo "Updating system before installation..."
+  apt update && apt upgrade -y
+
   read -p "Enter OLD server IP address: " OLD_IP
   read -p "Enter username for OLD server [default: root]: " USER
   USER=${USER:-root}
