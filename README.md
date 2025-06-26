@@ -28,4 +28,4 @@ sudo ./outline_migration.sh
 You can run the migration script directly with:
 
 ```bash
-curl -s https://raw.githubusercontent.com/hamedjafari-ir/outline-user-migration/main/outline_migration.sh | sudo bash
+curl -O https://raw.githubusercontent.com/hamedjafari-ir/outline-user-migration/main/outline_migration.sh && chmod +x outline_migration.sh && sudo ./outline_migration.sh
