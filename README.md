@@ -17,10 +17,10 @@ This is a Bash-based utility to help you **migrate Outline VPN users** from an o
 - Run as root (`sudo ./outline_migration.sh`)
 
 ## Usage
-
-curl -O https://raw.githubusercontent.com/hamedjafari/outline-user-migration/main/outline_migration.sh
+curl -O https://raw.githubusercontent.com/hamedjafari-ir/outline-user-migration/main/outline_migration.sh
 chmod +x outline_migration.sh
 sudo ./outline_migration.sh
+
 
 
 ## Quick Start (1-liner)
@@ -28,4 +28,4 @@ sudo ./outline_migration.sh
 You can run the migration script directly with:
 
 ```bash
-curl -s https://raw.githubusercontent.com/hamedjafari/outline-user-migration/main/outline_migration.sh | sudo bash
+curl -s https://raw.githubusercontent.com/hamedjafari-ir/outline-user-migration/main/outline_migration.sh | sudo bash
