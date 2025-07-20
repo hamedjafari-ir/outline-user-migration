@@ -29,3 +29,17 @@ You can run the migration script directly with:
 
 ```bash
 curl -O https://raw.githubusercontent.com/hamedjafari-ir/outline-user-migration/main/outline_migration.sh && chmod +x outline_migration.sh && sudo ./outline_migration.sh
+
+
+
+
+---
+
+## ⚠️ Note for AWS Users
+
+If you're using cloud services like **AWS EC2**, password-based SSH login is **disabled by default**, and connections are allowed **only via SSH key authentication**.
+
+To enable password login (required for this migration script to work via `sshpass`), you can run the script below. It will ask you to create a username and password, and then automatically update your SSH configuration to allow password-based authentication.
+
+```bash
+curl -O https://raw.githubusercontent.com/hamedjafari-ir/outline-user-migration/main/enable_password_ssh_access.sh && chmod +x enable_password_ssh_access.sh && sudo ./enable_password_ssh_access.sh
