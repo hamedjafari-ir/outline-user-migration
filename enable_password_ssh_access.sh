@@ -5,43 +5,55 @@ if [[ "$EUID" -ne 0 ]]; then
   exit 1
 fi
 
-USERNAME="rootmigration"
 SSHD_CONFIG="/etc/ssh/sshd_config"
-BACKUP_CONFIG="/etc/ssh/sshd_config.backup.migration"
+BACKUP_CONFIG="/etc/ssh/sshd_config.migration.backup"
 
 function pause() {
   read -p "Press Enter to continue..."
 }
 
 function create_user() {
-  echo "Enter password for new user '$USERNAME':"
+  echo ""
+  read -p "Enter username to create [default: rootmigration]: " USERNAME
+  USERNAME=${USERNAME:-rootmigration}
+
+  echo "Enter password for '$USERNAME':"
   read -s PASSWORD
 
+  # Create user if not exists
   if id "$USERNAME" &>/dev/null; then
-    echo "User $USERNAME already exists."
+    echo "User '$USERNAME' already exists."
   else
     useradd -m -s /bin/bash "$USERNAME"
     echo "$USERNAME:$PASSWORD" | chpasswd
     usermod -aG sudo "$USERNAME"
-    echo "User $USERNAME created and added to sudo group."
+    echo "✅ User '$USERNAME' created and added to sudo group."
   fi
 
+  # Backup SSH config
   if [[ ! -f "$BACKUP_CONFIG" ]]; then
     cp "$SSHD_CONFIG" "$BACKUP_CONFIG"
-    echo "Original SSH config backed up."
+    echo "📦 SSH config backed up to $BACKUP_CONFIG"
   fi
 
-  echo "Configuring SSH to allow password login..."
+  echo "🔧 Updating SSH configuration..."
 
-  # Safely enable password login
+  # Ensure password login enabled
   sed -i 's/^#\?PasswordAuthentication .*/PasswordAuthentication yes/' "$SSHD_CONFIG"
-  sed -i 's/^#\?PermitRootLogin .*/PermitRootLogin yes/' "$SSHD_CONFIG"
   sed -i 's/^#\?ChallengeResponseAuthentication .*/ChallengeResponseAuthentication no/' "$SSHD_CONFIG"
   sed -i 's/^#\?UsePAM .*/UsePAM yes/' "$SSHD_CONFIG"
+  sed -i 's/^#\?PermitRootLogin .*/PermitRootLogin yes/' "$SSHD_CONFIG"
+
+  # Remove any restrictive Match blocks
+  if grep -q "^Match" "$SSHD_CONFIG"; then
+    echo "⚠️ Removing Match blocks in sshd_config (if any)..."
+    awk '/^Match/{exit} {print}' "$SSHD_CONFIG" > /tmp/sshd_config.clean && mv /tmp/sshd_config.clean "$SSHD_CONFIG"
+  fi
 
   systemctl restart sshd
-  echo "✅ SSH password login is now enabled. You can now connect using:"
-  echo "ssh $USERNAME@<your-ec2-ip>"
+  echo ""
+  echo "✅ SSH password login is now enabled."
+  echo "You can now log in with: ssh $USERNAME@<your-server-ip>"
   pause
 }
 
@@ -52,9 +64,12 @@ function ping_ip() {
 }
 
 function remove_user() {
-  read -p "Are you sure you want to remove $USERNAME and restore SSH config? (y/N): " CONFIRM
+  read -p "Enter username to remove [default: rootmigration]: " USERNAME
+  USERNAME=${USERNAME:-rootmigration}
+
+  read -p "Are you sure you want to remove user '$USERNAME' and restore SSH config? (y/N): " CONFIRM
   if [[ "$CONFIRM" != "y" && "$CONFIRM" != "Y" ]]; then
-    echo "Aborted."
+    echo "❌ Cancelled."
     pause
     return
   fi
@@ -62,33 +77,33 @@ function remove_user() {
   if id "$USERNAME" &>/dev/null; then
     pkill -u "$USERNAME"
     userdel -r "$USERNAME"
-    echo "User $USERNAME deleted."
+    echo "🗑️ User '$USERNAME' deleted."
   else
-    echo "User $USERNAME does not exist."
+    echo "User '$USERNAME' not found."
   fi
 
   if [[ -f "$BACKUP_CONFIG" ]]; then
     cp "$BACKUP_CONFIG" "$SSHD_CONFIG"
     systemctl restart sshd
-    echo "✅ SSH config restored to original state."
+    echo "🔁 SSH config restored from backup."
   else
-    echo "No backup SSH config found. Manual revert may be required."
+    echo "⚠️ No SSH config backup found."
   fi
 
   pause
 }
 
-# Main menu
+# Menu
 while true; do
   clear
-  echo "------------------------------------------"
-  echo " EC2 Root Access & SSH Config Tool"
-  echo "------------------------------------------"
-  echo "1) Create root-like user with password login"
+  echo "----------------------------------------------"
+  echo " EC2 Password SSH Access & User Setup Script"
+  echo "----------------------------------------------"
+  echo "1) Create user & enable password SSH access"
   echo "2) Ping a remote IP"
   echo "3) Remove user and restore SSH config"
   echo "4) Exit"
-  echo "------------------------------------------"
+  echo "----------------------------------------------"
   read -p "Choose an option [1-4]: " CHOICE
 
   case $CHOICE in
