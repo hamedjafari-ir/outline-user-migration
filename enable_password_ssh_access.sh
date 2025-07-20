@@ -7,9 +7,22 @@ fi
 
 SSHD_CONFIG="/etc/ssh/sshd_config"
 BACKUP_CONFIG="/etc/ssh/sshd_config.migration.backup"
+SSH_D_DIR="/etc/ssh/sshd_config.d"
+DISABLED_DIR="$SSH_D_DIR/disabled_by_script"
 
 function pause() {
   read -p "Press Enter to continue..."
+}
+
+function disable_conflicting_ssh_configs() {
+  mkdir -p "$DISABLED_DIR"
+  echo "🔍 Searching for PasswordAuthentication no in $SSH_D_DIR..."
+  for file in "$SSH_D_DIR"/*.conf; do
+    if grep -q "^PasswordAuthentication no" "$file"; then
+      echo "⚠️ Disabling $file (contains PasswordAuthentication no)"
+      mv "$file" "$DISABLED_DIR/"
+    fi
+  done
 }
 
 function create_user() {
@@ -20,7 +33,6 @@ function create_user() {
   echo "Enter password for '$USERNAME':"
   read -s PASSWORD
 
-  # Create user if not exists
   if id "$USERNAME" &>/dev/null; then
     echo "User '$USERNAME' already exists."
   else
@@ -30,25 +42,20 @@ function create_user() {
     echo "✅ User '$USERNAME' created and added to sudo group."
   fi
 
-  # Backup SSH config
-  if [[ ! -f "$BACKUP_CONFIG" ]]; then
-    cp "$SSHD_CONFIG" "$BACKUP_CONFIG"
-    echo "📦 SSH config backed up to $BACKUP_CONFIG"
-  fi
+  [[ ! -f "$BACKUP_CONFIG" ]] && cp "$SSHD_CONFIG" "$BACKUP_CONFIG" && echo "📦 SSH config backed up."
 
-  echo "🔧 Updating SSH configuration..."
+  echo "🔧 Fixing SSH config..."
 
-  # Ensure password login enabled
-  sed -i 's/^#\?PasswordAuthentication .*/PasswordAuthentication yes/' "$SSHD_CONFIG"
-  sed -i 's/^#\?ChallengeResponseAuthentication .*/ChallengeResponseAuthentication no/' "$SSHD_CONFIG"
-  sed -i 's/^#\?UsePAM .*/UsePAM yes/' "$SSHD_CONFIG"
-  sed -i 's/^#\?PermitRootLogin .*/PermitRootLogin yes/' "$SSHD_CONFIG"
+  disable_conflicting_ssh_configs
 
-  # Remove any restrictive Match blocks
-  if grep -q "^Match" "$SSHD_CONFIG"; then
-    echo "⚠️ Removing Match blocks in sshd_config (if any)..."
-    awk '/^Match/{exit} {print}' "$SSHD_CONFIG" > /tmp/sshd_config.clean && mv /tmp/sshd_config.clean "$SSHD_CONFIG"
-  fi
+  # Clean Match blocks if exist
+  awk '/^Match/{exit} {print}' "$SSHD_CONFIG" > /tmp/sshd_clean.conf && mv /tmp/sshd_clean.conf "$SSHD_CONFIG"
+
+  # Set correct options
+  grep -q "^PasswordAuthentication" "$SSHD_CONFIG" && sed -i 's/^PasswordAuthentication.*/PasswordAuthentication yes/' "$SSHD_CONFIG" || echo "PasswordAuthentication yes" >> "$SSHD_CONFIG"
+  grep -q "^PermitRootLogin" "$SSHD_CONFIG" && sed -i 's/^PermitRootLogin.*/PermitRootLogin yes/' "$SSHD_CONFIG" || echo "PermitRootLogin yes" >> "$SSHD_CONFIG"
+  grep -q "^UsePAM" "$SSHD_CONFIG" && sed -i 's/^UsePAM.*/UsePAM yes/' "$SSHD_CONFIG" || echo "UsePAM yes" >> "$SSHD_CONFIG"
+  grep -q "^ChallengeResponseAuthentication" "$SSHD_CONFIG" && sed -i 's/^ChallengeResponseAuthentication.*/ChallengeResponseAuthentication no/' "$SSHD_CONFIG" || echo "ChallengeResponseAuthentication no" >> "$SSHD_CONFIG"
 
   systemctl restart sshd
   echo ""
@@ -84,12 +91,15 @@ function remove_user() {
 
   if [[ -f "$BACKUP_CONFIG" ]]; then
     cp "$BACKUP_CONFIG" "$SSHD_CONFIG"
-    systemctl restart sshd
-    echo "🔁 SSH config restored from backup."
-  else
-    echo "⚠️ No SSH config backup found."
+    echo "🔁 SSH config restored."
   fi
 
+  if [[ -d "$DISABLED_DIR" ]]; then
+    mv "$DISABLED_DIR"/*.conf "$SSH_D_DIR"/ 2>/dev/null
+    echo "🔁 Re-enabled previously disabled SSH config files."
+  fi
+
+  systemctl restart sshd
   pause
 }
 
